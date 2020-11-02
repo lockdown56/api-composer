@@ -1,0 +1,1 @@
+ignore = {"kong", "ngx", "self"}
