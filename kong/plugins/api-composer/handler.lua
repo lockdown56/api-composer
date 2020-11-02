@@ -91,7 +91,7 @@ local function get_value(schema, ctx)
             return nil, err
         end
 
-        -- 如果从 header 中取值，一律转为小写
+        -- 
         if 'header' == value_expr[3] then
             value_expr[4] = string.lower(value_expr[4])
         end
@@ -116,7 +116,7 @@ local function get_value(schema, ctx)
         value = schema.default
     end
 
-    -- 默认值
+    -- default value
     local value_type = schema.type
     if value_type == "array" then
         if not value or (type(value) == "table" and #value == 0) then
@@ -182,7 +182,6 @@ local function get_step_inputs(inputs, ctx)
         header = {}
     }
 
-    -- 将参数表达式替换为实际值
     for pos, params in pairs(inputs) do
         if type(params) == 'table' and string.lower(pos) ~= "body" then
             for param_key, schema in pairs(params) do
@@ -195,13 +194,11 @@ local function get_step_inputs(inputs, ctx)
                         return nil, "value expression err, can not get values"
                     end
 
-                    -- header 字段名都转为小写保存，因此这里从 header 中取值时也需要转为小写
                     local from_step_pos = expr[1]
                     if from_step_pos == 'header' then
                         expr[2] = string.lower(expr[2])
                     end
 
-                    -- 获取实际值，如果
                     local value = jp.value(data, expr)
                     if nil == value then
                         value = schema.default
@@ -217,7 +214,7 @@ local function get_step_inputs(inputs, ctx)
 
     -- body
     local input_body
-    -- 如果 body 没有指定类型，默认为 object
+    -- use object as default body type
     local raw_body_schema = inputs.body
 
     if raw_body_schema then
@@ -248,7 +245,7 @@ end
 
 
 local function get_url(url, query, path_vars)
-    -- 如果 url 存在 path 变量，则替换为 path 参数值
+    -- replace path value if exist
     local new_url, _, err
     new_url, _, err = ngx.re.gsub(url, "{[^/]+}", function (m)
         local key
@@ -290,7 +287,7 @@ end
 
 
 local function get_response(step, ctx)
-    -- 状态码
+    -- status code
     local status_schema = {
         type = "number",
         value = step.status,
@@ -318,7 +315,7 @@ local function get_response(step, ctx)
     -- body
     local body
 
-    -- 如果 body 没有指定类型，默认为 object
+    -- use object as default type if unspecified
     local raw_body_schema = step.outputs.body
     if raw_body_schema then
         local body_schema
@@ -353,7 +350,7 @@ local function send_request(step, step_inputs, ctx)
         return err
     end
 
-    -- 发送请求
+    -- send request
     local req = {
         method = string.upper(step.method),
         url = url,
@@ -369,20 +366,20 @@ local function send_request(step, step_inputs, ctx)
     local r
     r, err = requests.request(req)
     if r == nil then
-        kong.log("请求上游服务异常, ", err)
+        kong.log("failed to request from upstream, ", err)
         return err
     end
 
     local status_code = r.status_code
     local res_body = r:body()
     if status_code > 399 then
-        kong.log("上游返回异常, status_code: ", status_code, ", msg: ", res_body)
+        kong.log("upstream error, status_code: ", status_code, ", msg: ", res_body)
         return "upstream error", status_code, res_body
     end
 
     local output_body
 
-    -- 如果响应 body 是 json 格式，进行解析 -- start
+    -- parse body if body is json format -- start
     local headers = r.headers
     local content_type = string.lower(headers["content-type"] or "")
     local startIndex, _ = find(content_type, "application/json")
@@ -431,7 +428,7 @@ function ComposerHandler:access(conf)
             local step_inputs
             step_inputs, err = get_step_inputs(step.inputs, ctx)
             if err then
-                kong.log("获取编排步骤参数错误：", err)
+                kong.log("failed to parse params for step：", err)
                 kong.response.exit(500, "server error")
             end
 
@@ -441,18 +438,16 @@ function ComposerHandler:access(conf)
                 return kong.response.exit(status_code or 500, msg or "server error")
             end
         elseif step.type == 'response' then
-            -- 组装响应内容
+            -- assembly response content
             local res
             res, err = get_response(step, ctx)
             if err then
-                kong.log("组装响应参数错误：", err)
-
                 kong.response.exit(500, "server error")
             end
 
             kong.response.exit(res.status, res.body, res.header)
         else
-            kong.log('还未支持的类型：', step.type)
+            kong.log('no support type：', step.type)
         end
     end
 end
