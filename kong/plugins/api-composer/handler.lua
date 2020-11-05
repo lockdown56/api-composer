@@ -7,7 +7,6 @@ local lpeg = require "lpeg"
 
 local new_tab = require "table.new"
 local remove_tab = table.remove
-local concat_tab = table.concat
 local type = type
 local tonumber = tonumber
 local tostring = tostring
@@ -91,7 +90,6 @@ local function get_value(schema, ctx)
             return nil, err
         end
 
-        -- 
         if 'header' == value_expr[3] then
             value_expr[4] = string.lower(value_expr[4])
         end
@@ -260,25 +258,14 @@ local function get_url(url, query, path_vars)
     end
 
     if type(query) == 'table' then
-        local url_tab = new_tab(10, 0)
-        url_tab[1] = new_url
-
-        local i = 2
-        for k, v in pairs(query) do
-            if 2 == i then
-                url_tab[i] = '?'
-            else
-                url_tab[i] = '&'
-            end
-
-            url_tab[i+1] = k
-            url_tab[i+2] = '='
-            url_tab[i+3] = v
-
-            i = i + 4
+        local res, query_str = pcall(ngx.encode_args, query)
+        if not res then
+            return nil, query_str
         end
 
-        new_url = concat_tab(url_tab)
+        if "" ~= query_str then
+            new_url = new_url .. "?" .. query_str
+        end
     end
 
     return new_url
