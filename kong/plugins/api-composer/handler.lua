@@ -387,7 +387,7 @@ local function send_request(step, step_inputs, ctx)
         body = output_body
     }
 
-    ctx[step.code] = outputs
+    ctx[step.name] = outputs
 
     return nil
 end
